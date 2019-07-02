@@ -3,7 +3,7 @@ platform :ios, '10.0'
 use_frameworks!
 
 target 'ILABReverseVideoExporterDemo' do
-  pod 'ILABReverseVideoExporter', :path => "../"
+  pod 'TRReverse', :path => "../"
   pod 'OHQBImagePicker'
   pod 'M13ProgressSuite'
 end
