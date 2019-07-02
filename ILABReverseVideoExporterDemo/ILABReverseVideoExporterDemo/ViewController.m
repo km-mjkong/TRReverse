@@ -12,7 +12,7 @@
 @import AVFoundation;
 
 #import <OHQBImagePicker/QBImagePicker.h>
-#import <ILABReverseVideoExporter/ILABReverseVideoExporter.h>
+#import <TRReverse/ILABReverseVideoExporter.h>
 #import <M13ProgressSuite/M13ProgressViewBar.h>
 
 @interface ViewController()<QBImagePickerControllerDelegate, UIPickerViewDataSource, UIPickerViewDelegate> {
