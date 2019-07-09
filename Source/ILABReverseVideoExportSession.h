@@ -8,8 +8,7 @@
 //
 
 #import "ILABReverseVideoDefs.h"
-
-@import AVFoundation;
+#import <AVFoundation/AVFoundation.h>
 
 /**
  Utility class for reversing videos

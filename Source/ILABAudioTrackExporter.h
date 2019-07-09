@@ -6,8 +6,7 @@
 //
 
 #import "ILABReverseVideoDefs.h"
-
-@import AVFoundation;
+#import <AVFoundation/AVFoundation.h>
 
 /**
  Utility class for exporting an audio AVAssetTrack to a file quickly

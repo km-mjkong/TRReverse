@@ -5,9 +5,8 @@
 //  Created by Jon Gilkison on 8/15/17.
 //
 
-@import AVFoundation;
-
 #import "ILABReverseVideoDefs.h"
+#import <AVFoundation/AVFoundation.h>
 
 NSString * const kILABReverseVideoExportSessionErrorDomain = @"kILABReverseVideoExportSessionErrorDomain";
 
