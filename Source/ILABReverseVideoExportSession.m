@@ -53,6 +53,7 @@ typedef void(^ILABGenerateAssetBlock)(BOOL complete, AVAsset *asset, NSError *er
         _sourceSize = CGSizeZero;
         _sourceDuration = kCMTimeZero;
         _sourceReady = NO;
+        _deleteCacheFile = YES;
         
         _showDebug = NO;
         _skipAudio = NO;
@@ -307,6 +308,11 @@ typedef void(^ILABGenerateAssetBlock)(BOOL complete, AVAsset *asset, NSError *er
                     }
                 }
             }
+        }
+        
+        if (self.deleteCacheFile) {
+            [[NSFileManager defaultManager] removeItemAtURL:reversedAudioPath error:nil];
+            [[NSFileManager defaultManager] removeItemAtURL:reversedVideoPath error:nil];
         }
     }];
 }
