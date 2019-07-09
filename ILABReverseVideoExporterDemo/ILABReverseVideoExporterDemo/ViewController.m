@@ -137,6 +137,8 @@
     self.exportSession = [ILABReverseVideoExportSession exportSessionWithAsset:asset
                                                                      timeRange:CMTimeRangeMake(startTime, duration)
                                                                      outputURL:outputURL];
+    self.exportSession.deleteCacheFile = NO;
+
     __weak typeof(self) weakSelf = self;
     ILABProgressBlock progressBlock = ^(NSString *currentOperation, float progress) {
         if (weakSelf) {
