@@ -76,6 +76,12 @@
     [self processAsset:self.asset startTime:self.startTime duration:self.duration];
 }
 
+- (IBAction)cancelReverse:(id)sender {
+    if (self.exportSession) {
+        [self.exportSession cancelReverseExport];
+    }
+}
+
 - (NSString *)timeFormatted:(CMTime)time
 {
     NSUInteger seconds = CMTimeGetSeconds(time);

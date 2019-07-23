@@ -29,6 +29,7 @@ typedef void(^ILABGenerateAssetBlock)(BOOL complete, AVAsset *asset, NSError *er
     NSError *lastError;
 }
 @property (nonatomic) CMTimeRange timeRange;
+@property (nonatomic) BOOL isCanceled;
 @end
 
 
@@ -77,6 +78,7 @@ typedef void(^ILABGenerateAssetBlock)(BOOL complete, AVAsset *asset, NSError *er
         videoAsset = videoComp;
 
         self.timeRange = timeRange;
+        self.isCanceled = NO;
         
         dispatch_semaphore_t loadSemi = dispatch_semaphore_create(0);
         __weak typeof(self) weakSelf = self;
@@ -141,6 +143,15 @@ typedef void(^ILABGenerateAssetBlock)(BOOL complete, AVAsset *asset, NSError *er
     session.outputURL = outputURL;
     
     return session;
+}
+
+#pragma mark - Cancel
+
+-(void)cancelReverseExport {
+    @synchronized ([[self class] generateQueue]) {
+        self.isCanceled = YES;
+        self.deleteCacheFile = YES;
+    }
 }
 
 #pragma mark - Queue
@@ -248,7 +259,11 @@ typedef void(^ILABGenerateAssetBlock)(BOOL complete, AVAsset *asset, NSError *er
             if (completeBlock) {
                 completeBlock(NO, error);
             }
-            
+            //
+            if (weakSelf.deleteCacheFile) {
+                [[NSFileManager defaultManager] removeItemAtURL:reversedAudioPath error:nil];
+                [[NSFileManager defaultManager] removeItemAtURL:reversedVideoPath error:nil];
+            }
             return;
         }
 
@@ -289,7 +304,9 @@ typedef void(^ILABGenerateAssetBlock)(BOOL complete, AVAsset *asset, NSError *er
                         if (exportSession.status != AVAssetExportSessionStatusCompleted) {
                             strongSelf->lastError = exportSession.error;
                         }
-                        
+                        if (strongSelf->_isCanceled) {
+                            strongSelf->lastError = [NSError reverseVideoExportSessionError:ILABReverseVideoExportUserCancel];
+                        }
                         if (completeBlock) {
                             completeBlock((strongSelf->lastError == nil), strongSelf->lastError);
                         }
@@ -308,12 +325,13 @@ typedef void(^ILABGenerateAssetBlock)(BOOL complete, AVAsset *asset, NSError *er
                     }
                 }
             }
+            //
+            if (strongSelf.deleteCacheFile) {
+                [[NSFileManager defaultManager] removeItemAtURL:reversedAudioPath error:nil];
+                [[NSFileManager defaultManager] removeItemAtURL:reversedVideoPath error:nil];
+            }
         }
         
-        if (self.deleteCacheFile) {
-            [[NSFileManager defaultManager] removeItemAtURL:reversedAudioPath error:nil];
-            [[NSFileManager defaultManager] removeItemAtURL:reversedVideoPath error:nil];
-        }
     }];
 }
 
@@ -400,6 +418,13 @@ typedef void(^ILABGenerateAssetBlock)(BOOL complete, AVAsset *asset, NSError *er
                 CMTime presentationTime = CMSampleBufferGetPresentationTimeStamp(sample);
                 [revSampleTimes addObject:[NSValue valueWithCMTime:presentationTime]];
                 
+                if (self.isCanceled) {
+                    strongSelf->lastError = [NSError reverseVideoExportSessionError:ILABReverseVideoExportUserCancel];
+                    resultsBlock(NO, nil, strongSelf->lastError);
+                    CFRelease(sample);
+                    sample = NULL;
+                    return;
+                }
                 if (progressBlock) {
                     [strongSelf updateProgressBlock:progressBlock
                                     operation:@"Analyzing Source Video"
@@ -568,6 +593,12 @@ typedef void(^ILABGenerateAssetBlock)(BOOL complete, AVAsset *asset, NSError *er
                     
                     frameCount++;
                     
+                    if (self.isCanceled) {
+                        strongSelf->lastError = [NSError reverseVideoExportSessionError:ILABReverseVideoExportUserCancel];
+                        resultsBlock(NO, nil, strongSelf->lastError);
+                        samples = nil;
+                        return;
+                    }
                     if(progressBlock) {
                         [strongSelf updateProgressBlock:progressBlock
                                         operation:@"Reversing Video"
@@ -580,6 +611,11 @@ typedef void(^ILABGenerateAssetBlock)(BOOL complete, AVAsset *asset, NSError *er
             
             [assetWriterInput markAsFinished];
             
+            if (self.isCanceled) {
+                strongSelf->lastError = [NSError reverseVideoExportSessionError:ILABReverseVideoExportUserCancel];
+                resultsBlock(NO, nil, strongSelf->lastError);
+                return;
+            }
             if (progressBlock) {
                 [strongSelf updateProgressBlock:progressBlock
                                 operation:@"Saving Reversed Video"

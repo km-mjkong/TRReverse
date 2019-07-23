@@ -100,9 +100,9 @@
                                 <rect key="frame" x="21" y="308.5" width="333" height="50"/>
                                 <subviews>
                                     <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="KR6-ao-XyL">
-                                        <rect key="frame" x="0.0" y="0.0" width="161.5" height="50"/>
+                                        <rect key="frame" x="0.0" y="0.0" width="104.5" height="50"/>
                                         <color key="backgroundColor" cocoaTouchSystemColor="groupTableViewBackgroundColor"/>
-                                        <fontDescription key="fontDescription" type="system" pointSize="14"/>
+                                        <fontDescription key="fontDescription" type="system" pointSize="13"/>
                                         <state key="normal" title="Pick Media">
                                             <color key="titleColor" white="0.0" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
                                         </state>
@@ -111,9 +111,9 @@
                                         </connections>
                                     </button>
                                     <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="v6b-t7-CbB">
-                                        <rect key="frame" x="171.5" y="0.0" width="161.5" height="50"/>
+                                        <rect key="frame" x="114.5" y="0.0" width="104" height="50"/>
                                         <color key="backgroundColor" cocoaTouchSystemColor="groupTableViewBackgroundColor"/>
-                                        <fontDescription key="fontDescription" type="system" pointSize="14"/>
+                                        <fontDescription key="fontDescription" type="system" pointSize="13"/>
                                         <state key="normal" title="Reverse Media">
                                             <color key="titleColor" white="0.0" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
                                         </state>
@@ -121,8 +121,20 @@
                                             <action selector="reverseVideoTouched:" destination="BYZ-38-t0r" eventType="touchUpInside" id="A3n-tn-zNv"/>
                                         </connections>
                                     </button>
+                                    <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="roundedRect" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="Acr-fu-O5f" userLabel="Cancel Reverse">
+                                        <rect key="frame" x="228.5" y="0.0" width="104.5" height="50"/>
+                                        <color key="backgroundColor" cocoaTouchSystemColor="groupTableViewBackgroundColor"/>
+                                        <fontDescription key="fontDescription" type="system" pointSize="13"/>
+                                        <state key="normal" title="Cancel Reverse">
+                                            <color key="titleColor" white="0.0" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                        </state>
+                                        <connections>
+                                            <action selector="cancelReverse:" destination="BYZ-38-t0r" eventType="touchUpInside" id="aH2-El-2BL"/>
+                                        </connections>
+                                    </button>
                                 </subviews>
                                 <constraints>
+                                    <constraint firstItem="Acr-fu-O5f" firstAttribute="width" secondItem="v6b-t7-CbB" secondAttribute="width" id="cO3-qV-cRT"/>
                                     <constraint firstItem="v6b-t7-CbB" firstAttribute="width" secondItem="KR6-ao-XyL" secondAttribute="width" id="lP4-V0-Xfx"/>
                                     <constraint firstAttribute="height" constant="50" id="oZQ-rl-al1"/>
                                 </constraints>

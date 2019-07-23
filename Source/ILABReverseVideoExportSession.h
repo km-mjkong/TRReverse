@@ -84,6 +84,10 @@
  */
 -(void)exportAsynchronously:(ILABProgressBlock)progressBlock complete:(ILABCompleteBlock)completeBlock;
 
+/**
+ Cancel the reverse export process
+ */
+-(void)cancelReverseExport;
 
 @end
 

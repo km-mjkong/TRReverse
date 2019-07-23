@@ -119,7 +119,6 @@
 				FF76ACE91F43CCCC00347273 /* Frameworks */,
 				FF76ACEA1F43CCCC00347273 /* Resources */,
 				EADF49FE22C6C6B200A9D958 /* [CP] Embed Pods Frameworks */,
-				C18DD2C23F9FAE904D8590BF /* [CP] Copy Pods Resources */,
 			);
 			buildRules = (
 			);
@@ -141,7 +140,7 @@
 				TargetAttributes = {
 					FF76ACEB1F43CCCC00347273 = {
 						CreatedOnToolsVersion = 8.3.3;
-						DevelopmentTeam = 4VS8SA23V9;
+						DevelopmentTeam = M7ULFZ4G22;
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -151,6 +150,7 @@
 			developmentRegion = English;
 			hasScannedForEncodings = 0;
 			knownRegions = (
+				English,
 				en,
 				Base,
 			);
@@ -196,21 +196,6 @@
 			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
 			showEnvVarsInLog = 0;
 		};
-		C18DD2C23F9FAE904D8590BF /* [CP] Copy Pods Resources */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-			);
-			name = "[CP] Copy Pods Resources";
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "\"${SRCROOT}/Pods/Target Support Files/Pods-ILABReverseVideoExporterDemo/Pods-ILABReverseVideoExporterDemo-resources.sh\"\n";
-			showEnvVarsInLog = 0;
-		};
 		EADF49FE22C6C6B200A9D958 /* [CP] Embed Pods Frameworks */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
@@ -218,15 +203,15 @@
 			);
 			inputPaths = (
 				"${SRCROOT}/Pods/Target Support Files/Pods-ILABReverseVideoExporterDemo/Pods-ILABReverseVideoExporterDemo-frameworks.sh",
-				"${BUILT_PRODUCTS_DIR}/ILABReverseVideoExporter/ILABReverseVideoExporter.framework",
 				"${BUILT_PRODUCTS_DIR}/M13ProgressSuite/M13ProgressSuite.framework",
 				"${BUILT_PRODUCTS_DIR}/OHQBImagePicker/OHQBImagePicker.framework",
+				"${BUILT_PRODUCTS_DIR}/TRReverse/TRReverse.framework",
 			);
 			name = "[CP] Embed Pods Frameworks";
 			outputPaths = (
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/ILABReverseVideoExporter.framework",
 				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/M13ProgressSuite.framework",
 				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/OHQBImagePicker.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/TRReverse.framework",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -363,7 +348,7 @@
 			baseConfigurationReference = 2F799591F8C3982442A39C8C /* Pods-ILABReverseVideoExporterDemo.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				DEVELOPMENT_TEAM = 4VS8SA23V9;
+				DEVELOPMENT_TEAM = M7ULFZ4G22;
 				INFOPLIST_FILE = ILABReverseVideoExporterDemo/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = com.interfacelab.ILABReverseVideoExporterDemo;
@@ -376,7 +361,7 @@
 			baseConfigurationReference = C1762F98CA1651CC462DE239 /* Pods-ILABReverseVideoExporterDemo.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				DEVELOPMENT_TEAM = 4VS8SA23V9;
+				DEVELOPMENT_TEAM = M7ULFZ4G22;
 				INFOPLIST_FILE = ILABReverseVideoExporterDemo/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = com.interfacelab.ILABReverseVideoExporterDemo;
