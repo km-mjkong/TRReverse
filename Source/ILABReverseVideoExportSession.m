@@ -78,7 +78,6 @@ typedef void(^ILABGenerateAssetBlock)(BOOL complete, AVAsset *asset, NSError *er
         videoAsset = videoComp;
 
         self.timeRange = timeRange;
-        self.isCanceled = NO;
         
         dispatch_semaphore_t loadSemi = dispatch_semaphore_create(0);
         __weak typeof(self) weakSelf = self;
@@ -148,13 +147,29 @@ typedef void(^ILABGenerateAssetBlock)(BOOL complete, AVAsset *asset, NSError *er
 #pragma mark - Cancel
 
 -(void)cancelReverseExport {
-    @synchronized ([[self class] generateQueue]) {
+    dispatch_barrier_sync([[self class] cancelQueue], ^{
         self.isCanceled = YES;
-        self.deleteCacheFile = YES;
-    }
+    });
+}
+
+-(BOOL)isCanceledReverseExport {
+    __block BOOL _isCanceled;
+    dispatch_sync([[self class] cancelQueue], ^{
+        _isCanceled = self.isCanceled;
+    });
+    return _isCanceled;
 }
 
 #pragma mark - Queue
+
++(dispatch_queue_t)cancelQueue {
+    static dispatch_queue_t cancelQueue = NULL;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        cancelQueue = dispatch_queue_create("cancel queue", NULL);
+    });
+    return cancelQueue;
+}
 
 +(dispatch_queue_t)exportQueue {
     static dispatch_queue_t exportQueue = NULL;
@@ -418,7 +433,7 @@ typedef void(^ILABGenerateAssetBlock)(BOOL complete, AVAsset *asset, NSError *er
                 CMTime presentationTime = CMSampleBufferGetPresentationTimeStamp(sample);
                 [revSampleTimes addObject:[NSValue valueWithCMTime:presentationTime]];
                 
-                if (self.isCanceled) {
+                if ([strongSelf isCanceledReverseExport]) {
                     strongSelf->lastError = [NSError reverseVideoExportSessionError:ILABReverseVideoExportUserCancel];
                     resultsBlock(NO, nil, strongSelf->lastError);
                     CFRelease(sample);
@@ -593,7 +608,7 @@ typedef void(^ILABGenerateAssetBlock)(BOOL complete, AVAsset *asset, NSError *er
                     
                     frameCount++;
                     
-                    if (self.isCanceled) {
+                    if ([strongSelf isCanceledReverseExport]) {
                         strongSelf->lastError = [NSError reverseVideoExportSessionError:ILABReverseVideoExportUserCancel];
                         resultsBlock(NO, nil, strongSelf->lastError);
                         samples = nil;
@@ -611,7 +626,7 @@ typedef void(^ILABGenerateAssetBlock)(BOOL complete, AVAsset *asset, NSError *er
             
             [assetWriterInput markAsFinished];
             
-            if (self.isCanceled) {
+            if ([self isCanceledReverseExport]) {
                 strongSelf->lastError = [NSError reverseVideoExportSessionError:ILABReverseVideoExportUserCancel];
                 resultsBlock(NO, nil, strongSelf->lastError);
                 return;
