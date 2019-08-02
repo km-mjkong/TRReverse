@@ -87,6 +87,7 @@ typedef void(^ILABGenerateAssetBlock)(BOOL complete, AVAsset *asset, NSError *er
                 NSError *error = nil;
                 
                 AVKeyValueStatus statusDuration =[strongSelf->sourceAsset statusOfValueForKey:@"duration" error:&error];
+                CGSize sourceSize;
                 
                 if (statusDuration != AVKeyValueStatusLoaded) {
                     return;
@@ -103,10 +104,16 @@ typedef void(^ILABGenerateAssetBlock)(BOOL complete, AVAsset *asset, NSError *er
                 if (strongSelf->_sourceTransform.a == 0 && strongSelf->_sourceTransform.d == 0 &&
                     (strongSelf->_sourceTransform.b == 1.0 || strongSelf->_sourceTransform.b == -1.0) &&
                     (strongSelf->_sourceTransform.c == 1.0 || strongSelf->_sourceTransform.c == -1.0)) {
-                    strongSelf->_sourceSize = CGSizeMake(t.naturalSize.height, t.naturalSize.width);
+                    sourceSize = CGSizeMake(t.naturalSize.height, t.naturalSize.width);
+                    
                 } else {
-                    strongSelf->_sourceSize = CGSizeMake(t.naturalSize.width, t.naturalSize.height);
+                    sourceSize = CGSizeMake(t.naturalSize.width, t.naturalSize.height);
                 }
+                
+                CGFloat width = ((int)(sourceSize.width) % 2 == 0) ? sourceSize.width : sourceSize.width - 1;
+                CGFloat height = ((int)(sourceSize.height) % 2 == 0) ? sourceSize.height : sourceSize.height - 1;
+
+                strongSelf->_sourceSize = CGSizeMake(width, height);
                 
                 strongSelf->_sourceReady = ((strongSelf->_sourceVideoTracks > 0) || (strongSelf->_sourceAudioTracks > 0));
             }
