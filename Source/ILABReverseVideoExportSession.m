@@ -47,7 +47,7 @@ typedef void(^ILABGenerateAssetBlock)(BOOL complete, AVAsset *asset, NSError *er
         
         sourceAsset = sourceAVAsset;
         
-        _samplesPerPass = 5;
+        _samplesPerPass = 40;
         
         _sourceVideoTracks = 0;
         _sourceAudioTracks = 0;
