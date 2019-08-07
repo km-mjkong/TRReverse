@@ -30,6 +30,7 @@ typedef void(^ILABGenerateAssetBlock)(BOOL complete, AVAsset *asset, NSError *er
 }
 @property (nonatomic) CMTimeRange timeRange;
 @property (nonatomic) BOOL isCanceled;
+@property (nonatomic) float estimatedDataRate;
 @end
 
 
@@ -46,7 +47,7 @@ typedef void(^ILABGenerateAssetBlock)(BOOL complete, AVAsset *asset, NSError *er
         
         sourceAsset = sourceAVAsset;
         
-        _samplesPerPass = 5;
+        _samplesPerPass = 40;
         
         _sourceVideoTracks = 0;
         _sourceAudioTracks = 0;
@@ -87,6 +88,7 @@ typedef void(^ILABGenerateAssetBlock)(BOOL complete, AVAsset *asset, NSError *er
                 NSError *error = nil;
                 
                 AVKeyValueStatus statusDuration =[strongSelf->sourceAsset statusOfValueForKey:@"duration" error:&error];
+                CGSize sourceSize;
                 
                 if (statusDuration != AVKeyValueStatusLoaded) {
                     return;
@@ -98,15 +100,22 @@ typedef void(^ILABGenerateAssetBlock)(BOOL complete, AVAsset *asset, NSError *er
                 strongSelf->_sourceVideoTracks = [strongSelf->sourceAsset tracksWithMediaType:AVMediaTypeVideo].count;
                 strongSelf->_sourceAudioTracks = [strongSelf->sourceAsset tracksWithMediaType:AVMediaTypeAudio].count;
                 strongSelf->_sourceFPS = t.nominalFrameRate;
+                strongSelf->_estimatedDataRate = t.estimatedDataRate;
                 
                 strongSelf->_sourceTransform = t.preferredTransform;
                 if (strongSelf->_sourceTransform.a == 0 && strongSelf->_sourceTransform.d == 0 &&
                     (strongSelf->_sourceTransform.b == 1.0 || strongSelf->_sourceTransform.b == -1.0) &&
                     (strongSelf->_sourceTransform.c == 1.0 || strongSelf->_sourceTransform.c == -1.0)) {
-                    strongSelf->_sourceSize = CGSizeMake(t.naturalSize.height, t.naturalSize.width);
+                    sourceSize = CGSizeMake(t.naturalSize.height, t.naturalSize.width);
+                    
                 } else {
-                    strongSelf->_sourceSize = CGSizeMake(t.naturalSize.width, t.naturalSize.height);
+                    sourceSize = CGSizeMake(t.naturalSize.width, t.naturalSize.height);
                 }
+                
+                CGFloat width = ((int)(sourceSize.width) % 2 == 0) ? sourceSize.width : sourceSize.width - 1;
+                CGFloat height = ((int)(sourceSize.height) % 2 == 0) ? sourceSize.height : sourceSize.height - 1;
+
+                strongSelf->_sourceSize = CGSizeMake(width, height);
                 
                 strongSelf->_sourceReady = ((strongSelf->_sourceVideoTracks > 0) || (strongSelf->_sourceAudioTracks > 0));
             }
@@ -532,10 +541,15 @@ typedef void(^ILABGenerateAssetBlock)(BOOL complete, AVAsset *asset, NSError *er
                 outputSettings[AVVideoCodecKey] = AVVideoCodecH264;
             }
             if (!outputSettings[AVVideoWidthKey]) {
-                outputSettings[AVVideoWidthKey] = @((strongSelf->_sourceSize.width<strongSelf->_sourceSize.height) ? strongSelf->_sourceSize.height : strongSelf->_sourceSize.width);
+                outputSettings[AVVideoWidthKey] = @(strongSelf->_sourceSize.width);
             }
             if (!outputSettings[AVVideoHeightKey]) {
-                outputSettings[AVVideoHeightKey] = @((strongSelf->_sourceSize.width<strongSelf->_sourceSize.height) ? strongSelf->_sourceSize.width : strongSelf->_sourceSize.height);
+                outputSettings[AVVideoHeightKey] = @(strongSelf->_sourceSize.height);
+            }
+            if (!outputSettings[AVVideoCompressionPropertiesKey]) {
+                outputSettings[AVVideoCompressionPropertiesKey] = [NSDictionary dictionaryWithObjectsAndKeys:
+                                                                   @(strongSelf->_estimatedDataRate), AVVideoAverageBitRateKey,
+                                                                   nil];
             }
             
             AVAssetWriterInput *assetWriterInput =[AVAssetWriterInput assetWriterInputWithMediaType:AVMediaTypeVideo outputSettings:outputSettings];
@@ -561,6 +575,9 @@ typedef void(^ILABGenerateAssetBlock)(BOOL complete, AVAsset *asset, NSError *er
                 passEndTime = [dict[@"passEndTime"] CMTimeValue];
                 
                 CMTime passDuration = CMTimeSubtract(passEndTime, passStartTime);
+                if(CMTimeCompare(kCMTimeZero, passDuration) == 0) {
+                    continue;
+                }
                 
                 timeStartIndex = [dict[@"timeStartIndex"] longValue];
                 timeEndIndex = [dict[@"timeEndIndex"] longValue];
@@ -570,6 +587,12 @@ typedef void(^ILABGenerateAssetBlock)(BOOL complete, AVAsset *asset, NSError *er
                 
                 while((sample = [assetReaderOutput copyNextSampleBuffer])) {
                     CFRelease(sample);
+                }
+                
+                if(assetReader.status == AVAssetReaderStatusFailed) {
+                    strongSelf->lastError = [NSError reverseVideoExportSessionError:ILABReverseVideoExportSessionAVAssetReaderError];
+                    resultsBlock(NO, nil, strongSelf->lastError);
+                    return;
                 }
                 
                 [assetReaderOutput resetForReadingTimeRanges:@[[NSValue valueWithCMTimeRange:CMTimeRangeMake(passStartTime, passDuration)]]];
