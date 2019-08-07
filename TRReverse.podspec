@@ -9,4 +9,5 @@ Pod::Spec.new do |s|
   s.ios.deployment_target = '10.0'
   s.requires_arc = true
   s.source_files = 'Source'
+  s.pod_target_xcconfig = { "DEFINES_MODULE" => "YES" }
 end
