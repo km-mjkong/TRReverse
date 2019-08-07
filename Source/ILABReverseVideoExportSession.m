@@ -30,6 +30,7 @@ typedef void(^ILABGenerateAssetBlock)(BOOL complete, AVAsset *asset, NSError *er
 }
 @property (nonatomic) CMTimeRange timeRange;
 @property (nonatomic) BOOL isCanceled;
+@property (nonatomic) float estimatedDataRate;
 @end
 
 
@@ -99,6 +100,7 @@ typedef void(^ILABGenerateAssetBlock)(BOOL complete, AVAsset *asset, NSError *er
                 strongSelf->_sourceVideoTracks = [strongSelf->sourceAsset tracksWithMediaType:AVMediaTypeVideo].count;
                 strongSelf->_sourceAudioTracks = [strongSelf->sourceAsset tracksWithMediaType:AVMediaTypeAudio].count;
                 strongSelf->_sourceFPS = t.nominalFrameRate;
+                strongSelf->_estimatedDataRate = t.estimatedDataRate;
                 
                 strongSelf->_sourceTransform = t.preferredTransform;
                 if (strongSelf->_sourceTransform.a == 0 && strongSelf->_sourceTransform.d == 0 &&
@@ -539,10 +541,15 @@ typedef void(^ILABGenerateAssetBlock)(BOOL complete, AVAsset *asset, NSError *er
                 outputSettings[AVVideoCodecKey] = AVVideoCodecH264;
             }
             if (!outputSettings[AVVideoWidthKey]) {
-                outputSettings[AVVideoWidthKey] = @((strongSelf->_sourceSize.width<strongSelf->_sourceSize.height) ? strongSelf->_sourceSize.height : strongSelf->_sourceSize.width);
+                outputSettings[AVVideoWidthKey] = @(strongSelf->_sourceSize.width);
             }
             if (!outputSettings[AVVideoHeightKey]) {
-                outputSettings[AVVideoHeightKey] = @((strongSelf->_sourceSize.width<strongSelf->_sourceSize.height) ? strongSelf->_sourceSize.width : strongSelf->_sourceSize.height);
+                outputSettings[AVVideoHeightKey] = @(strongSelf->_sourceSize.height);
+            }
+            if (!outputSettings[AVVideoCompressionPropertiesKey]) {
+                outputSettings[AVVideoCompressionPropertiesKey] = [NSDictionary dictionaryWithObjectsAndKeys:
+                                                                   @(strongSelf->_estimatedDataRate), AVVideoAverageBitRateKey,
+                                                                   nil];
             }
             
             AVAssetWriterInput *assetWriterInput =[AVAssetWriterInput assetWriterInputWithMediaType:AVMediaTypeVideo outputSettings:outputSettings];
