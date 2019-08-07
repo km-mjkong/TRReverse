@@ -579,6 +579,12 @@ typedef void(^ILABGenerateAssetBlock)(BOOL complete, AVAsset *asset, NSError *er
                     CFRelease(sample);
                 }
                 
+                if(assetReader.status == AVAssetReaderStatusFailed) {
+                    strongSelf->lastError = [NSError reverseVideoExportSessionError:ILABReverseVideoExportSessionAVAssetReaderError];
+                    resultsBlock(NO, nil, strongSelf->lastError);
+                    return;
+                }
+                
                 [assetReaderOutput resetForReadingTimeRanges:@[[NSValue valueWithCMTimeRange:CMTimeRangeMake(passStartTime, passDuration)]]];
                 
                 NSMutableArray *samples = [NSMutableArray new];

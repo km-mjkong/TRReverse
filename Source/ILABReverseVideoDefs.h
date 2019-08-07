@@ -16,6 +16,7 @@ typedef enum : NSInteger {
     ILABReverseVideoExportSessionUnableToStartWriterError  = -103,
     ILABReverseVideoExportSessionUnableToWriteFrameError   = -104,
     ILABReverseVideoExportUserCancel                       = -105,
+    ILABReverseVideoExportSessionAVAssetReaderError        = -106,
     
     ILABAudioTrackExporterInvalidTrackIndexError           = -200,
     ILABAudioTrackExporterCannotAddInputError              = -201,

@@ -26,6 +26,8 @@ NSString * const kILABReverseVideoExportSessionErrorDomain = @"kILABReverseVideo
             return [NSError errorWithDomain:kILABReverseVideoExportSessionErrorDomain code:errorStatus userInfo:@{NSLocalizedDescriptionKey: @"Unable to append frame to output."}];
         case ILABReverseVideoExportUserCancel:
             return [NSError errorWithDomain:kILABReverseVideoExportSessionErrorDomain code:errorStatus userInfo:@{NSLocalizedDescriptionKey: @"User cancel."}];
+        case ILABReverseVideoExportSessionAVAssetReaderError:
+            return [NSError errorWithDomain:kILABReverseVideoExportSessionErrorDomain code:errorStatus userInfo:@{NSLocalizedDescriptionKey: @"Cannot open, this media may be damaged."}];
 
         case ILABAudioTrackExporterInvalidTrackIndexError:
             return [NSError errorWithDomain:kILABReverseVideoExportSessionErrorDomain code:errorStatus userInfo:@{NSLocalizedDescriptionKey: @"The specified track index is invalid."}];
