@@ -575,6 +575,9 @@ typedef void(^ILABGenerateAssetBlock)(BOOL complete, AVAsset *asset, NSError *er
                 passEndTime = [dict[@"passEndTime"] CMTimeValue];
                 
                 CMTime passDuration = CMTimeSubtract(passEndTime, passStartTime);
+                if(CMTimeCompare(kCMTimeZero, passDuration) == 0) {
+                    continue;
+                }
                 
                 timeStartIndex = [dict[@"timeStartIndex"] longValue];
                 timeEndIndex = [dict[@"timeEndIndex"] longValue];
