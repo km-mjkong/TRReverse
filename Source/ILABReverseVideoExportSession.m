@@ -657,7 +657,7 @@ typedef void(^ILABGenerateAssetBlock)(BOOL complete, AVAsset *asset, NSError *er
             if (progressBlock) {
                 [strongSelf updateProgressBlock:progressBlock
                                 operation:@"Saving Reversed Video"
-                                 progress:INFINITY];
+                                 progress:1.0];
             }
             
             [assetWriter finishWritingWithCompletionHandler:^{
