@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = "TRReverse"
-  s.version          = "1.0.1"
+  s.version          = "1.0.2"
   s.summary          = "Utility class for exporting partial reversed AVAssets. Forked from ILABReverseVideoExporter."
   s.homepage         = "https://github.com/km-mjkong/TRReverse"
   s.license          = { :type => "MIT", :file => "LICENSE" }

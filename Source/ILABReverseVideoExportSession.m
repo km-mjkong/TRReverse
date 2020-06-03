@@ -103,14 +103,8 @@ typedef void(^ILABGenerateAssetBlock)(BOOL complete, AVAsset *asset, NSError *er
                 strongSelf->_estimatedDataRate = t.estimatedDataRate;
                 
                 strongSelf->_sourceTransform = t.preferredTransform;
-                if (strongSelf->_sourceTransform.a == 0 && strongSelf->_sourceTransform.d == 0 &&
-                    (strongSelf->_sourceTransform.b == 1.0 || strongSelf->_sourceTransform.b == -1.0) &&
-                    (strongSelf->_sourceTransform.c == 1.0 || strongSelf->_sourceTransform.c == -1.0)) {
-                    sourceSize = CGSizeMake(t.naturalSize.height, t.naturalSize.width);
-                    
-                } else {
-                    sourceSize = CGSizeMake(t.naturalSize.width, t.naturalSize.height);
-                }
+
+                sourceSize = CGSizeMake(t.naturalSize.width, t.naturalSize.height);
                 
                 CGFloat width = ((int)(sourceSize.width) % 2 == 0) ? sourceSize.width : sourceSize.width - 1;
                 CGFloat height = ((int)(sourceSize.height) % 2 == 0) ? sourceSize.height : sourceSize.height - 1;
