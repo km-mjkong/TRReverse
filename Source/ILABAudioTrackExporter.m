@@ -6,428 +6,367 @@
 //
 
 #import "ILABAudioTrackExporter.h"
-
 @import Accelerate;
 
-@interface ILABAudioTrackExporter() {
-    AVMutableComposition *audioComp;
-    
-    AVAssetReaderOutput *trackOutput;
-    AVAssetWriterInput *writerInput;
-    
-    AVAssetReader *assetReader;
-    AVAssetWriter *assetWriter;
-    
-    dispatch_semaphore_t semi;
-    dispatch_queue_t mainQueue;
-    dispatch_queue_t audioQueue;
-    dispatch_group_t dispatchGroup;
-    
-    NSError *lastError;
-    
-    NSURL *exportURL;
-}
+@interface ILABAudioTrackExporter ()
+@property (nonatomic, strong) AVAsset *sourceAsset;
+@property (nonatomic, strong) AVAsset *exportingAudioAsset;
+@property (nonatomic, strong) NSError * lastError;
+
+@property (nonatomic, strong) AVAssetReader *assetReader;
+@property (nonatomic, strong) AVAssetReaderOutput *assetReaderOutput;
+@property (nonatomic, strong) AVAssetWriter *assetWriter;
+@property (nonatomic, strong) AVAssetWriterInput *assetWriterInput;
+
+@property (nonatomic) NSInteger trackIndex;
+
+@property (nonatomic) Float64 sourceSampleRate;
+@property (nonatomic) UInt32 sourceEstimatedDataRate;
+@property (nonatomic) UInt32 sourceChannel;
 @end
 
 @implementation ILABAudioTrackExporter
 
+#pragma mark - Init/Dealloc
+
 -(instancetype)initWithAsset:(AVAsset *)sourceAsset trackIndex:(NSInteger)trackIndex {
-    return [self initWithAsset:sourceAsset trackIndex:0 timeRange:CMTimeRangeMake(kCMTimeZero, sourceAsset.duration)];
+    return [self initWithAsset:sourceAsset
+                    trackIndex:0
+                     timeRange:CMTimeRangeMake(kCMTimeZero, sourceAsset.duration)];
 }
 
 -(instancetype)initWithAsset:(AVAsset *)sourceAsset trackIndex:(NSInteger)trackIndex timeRange:(CMTimeRange)timeRange {
-    if ((self = [super init])) {
-        lastError = nil;
+    if (self = [super init]) {
+        self.sourceAsset = sourceAsset;
+        self.trackIndex = trackIndex;
         
-        _exporting = NO;
-        _sourceAsset = sourceAsset;
-        _trackIndex = trackIndex;
+        AVAssetTrack *audioTrack = [sourceAsset tracksWithMediaType:AVMediaTypeAudio].firstObject;
+        CMAudioFormatDescriptionRef descriptionRef = (__bridge CMAudioFormatDescriptionRef)(audioTrack.formatDescriptions[0]);
+        const AudioStreamBasicDescription *description = CMAudioFormatDescriptionGetStreamBasicDescription(descriptionRef);
         
-        mainQueue=dispatch_queue_create([[NSString stringWithFormat:@"%p main",self] UTF8String], NULL);
-        audioQueue=dispatch_queue_create([[NSString stringWithFormat:@"%p audio",self] UTF8String], NULL);
-        
-        semi=dispatch_semaphore_create(0);
-        
-        dispatchGroup=dispatch_group_create();
-        
-        audioComp = [AVMutableComposition composition];
+        self.sourceSampleRate = description->mSampleRate;
+        self.sourceChannel = description->mChannelsPerFrame;
+        self.sourceEstimatedDataRate = audioTrack.estimatedDataRate;
+
+        AVMutableComposition *audioComp = [AVMutableComposition composition];
         for(AVAssetTrack *track in [sourceAsset tracksWithMediaType:AVMediaTypeAudio]) {
-            AVMutableCompositionTrack *atrack = [audioComp addMutableTrackWithMediaType:AVMediaTypeAudio preferredTrackID:kCMPersistentTrackID_Invalid];
+            AVMutableCompositionTrack *atrack = [audioComp
+                                                 addMutableTrackWithMediaType:AVMediaTypeAudio
+                                                 preferredTrackID:kCMPersistentTrackID_Invalid];
             [atrack insertTimeRange:timeRange ofTrack:track atTime:kCMTimeZero error:nil];
         }
+        self.exportingAudioAsset = audioComp;
     }
-    
     return self;
 }
 
-#pragma mark - Bookkeeping
-
--(AVAssetReaderOutput *)createReaderOutput {
-    AVAssetReaderTrackOutput *output=nil;
-    
+-(NSDictionary *)decompressionAudioSettingForPCMType {
     AudioChannelLayout stereoChannelLayout = {
-        .mChannelLayoutTag = kAudioChannelLayoutTag_Mono,
-        .mChannelBitmap = 0,
-        .mNumberChannelDescriptions = 0
+        .mChannelLayoutTag = self.sourceChannel == 2 ? kAudioChannelLayoutTag_Stereo : kAudioChannelLayoutTag_Mono,
     };
+    NSMutableDictionary *settings = [@{
+        AVFormatIDKey:@(kAudioFormatLinearPCM),
+        AVNumberOfChannelsKey:@(self.sourceChannel),
+        AVSampleRateKey:@(self.sourceSampleRate),
+        AVLinearPCMBitDepthKey:@32,
+        AVLinearPCMIsFloatKey:@YES,
+        AVLinearPCMIsNonInterleaved:@YES,
+        AVLinearPCMIsBigEndianKey:@NO,
+        AVChannelLayoutKey:[NSData dataWithBytes:&stereoChannelLayout
+                                          length:offsetof(AudioChannelLayout, mChannelDescriptions)]
+    } mutableCopy];
     
-    NSData *channelLayoutData=[NSData dataWithBytes:&stereoChannelLayout length:offsetof(AudioChannelLayout, mChannelDescriptions)];
-    
-    NSArray *audioTracks=[audioComp tracksWithMediaType:AVMediaTypeAudio];
-    if (_trackIndex>=audioTracks.count) {
-        lastError = [NSError reverseVideoExportSessionError:ILABAudioTrackExporterInvalidTrackIndexError];
-        return nil;
-    }
-    
-    AVCompositionTrack *compAudioTrack=audioTracks[_trackIndex];
-    
-    output=[AVAssetReaderTrackOutput assetReaderTrackOutputWithTrack:compAudioTrack
-                                                      outputSettings:@{
-                                                                       AVFormatIDKey:@(kAudioFormatLinearPCM),
-                                                                       AVLinearPCMBitDepthKey: @32,
-                                                                       AVSampleRateKey:@44100,
-                                                                       AVLinearPCMIsFloatKey:@YES,
-                                                                       AVLinearPCMIsNonInterleaved:@YES,
-                                                                       AVLinearPCMIsBigEndianKey:@NO,
-                                                                       AVNumberOfChannelsKey:@1,
-                                                                       AVChannelLayoutKey:channelLayoutData
-                                                                       }];
-    
-    return output;
+    return settings;
 }
 
--(BOOL)setupReaderAndWriter {
-    NSError *localError=nil;
-    
-    assetReader = [[AVAssetReader alloc] initWithAsset:audioComp error:&localError];
-    if (localError) {
-        lastError = localError;
-        return NO;
-    }
-    
-    [[NSFileManager defaultManager] removeItemAtURL:exportURL error:nil];
-    
-    assetWriter = [[AVAssetWriter alloc] initWithURL:exportURL fileType:AVFileTypeWAVE error:&localError];
-    if (localError) {
-        lastError = localError;
-        return NO;
-    }
-    
-    trackOutput=[self createReaderOutput];
-    if (!trackOutput) {
-        return NO;
-    }
-    
-    // Associate the audio mix used to mix the audio tracks being read with the output.
-    // Add the output to the reader if possible.
-    if ([assetReader canAddOutput:trackOutput]) {
-        [assetReader addOutput:trackOutput];
-    } else {
-        lastError = [NSError reverseVideoExportSessionError:ILABAudioTrackExporterCannotAddInputError];
-        return NO;
-    }
-    
+-(NSDictionary *)compressionAudioSettingForPCMType {
     AudioChannelLayout stereoChannelLayout = {
-        .mChannelLayoutTag = kAudioChannelLayoutTag_Mono,
-        .mChannelBitmap = 0,
-        .mNumberChannelDescriptions = 0
+        .mChannelLayoutTag = self.sourceChannel == 2 ? kAudioChannelLayoutTag_Stereo : kAudioChannelLayoutTag_Mono,
     };
+    NSMutableDictionary *settings = [@{
+        AVFormatIDKey:@(kAudioFormatLinearPCM),
+        AVNumberOfChannelsKey:@(self.sourceChannel),
+        AVSampleRateKey:@(self.sourceSampleRate),
+        AVLinearPCMBitDepthKey:@32,
+        AVLinearPCMIsFloatKey:@NO,
+        AVLinearPCMIsNonInterleaved:@NO,
+        AVLinearPCMIsBigEndianKey:@NO,
+        AVChannelLayoutKey:[NSData dataWithBytes:&stereoChannelLayout
+                                          length:offsetof(AudioChannelLayout, mChannelDescriptions)]
+    } mutableCopy];
     
-    NSData *channelLayoutData=[NSData dataWithBytes:&stereoChannelLayout length:offsetof(AudioChannelLayout, mChannelDescriptions)];
+    return settings;
+}
+
+-(NSDictionary *)decompressionAudioSettingForM4AType {
+    NSMutableDictionary *settings = [@{
+        AVFormatIDKey:@(kAudioFormatLinearPCM),
+    } mutableCopy];
     
-    writerInput = [AVAssetWriterInput assetWriterInputWithMediaType:AVMediaTypeAudio
-                                                     outputSettings:@{
-                                                                      AVFormatIDKey:@(kAudioFormatLinearPCM),
-                                                                      AVLinearPCMBitDepthKey: @32,
-                                                                      AVSampleRateKey:@44100,
-                                                                      AVLinearPCMIsFloatKey:@NO,
-                                                                      AVLinearPCMIsNonInterleaved:@NO,
-                                                                      AVLinearPCMIsBigEndianKey:@NO,
-                                                                      AVNumberOfChannelsKey:@1,
-                                                                      AVChannelLayoutKey:channelLayoutData
-                                                                      }];
+    return settings;
+}
+
+-(NSDictionary *)compressionAudioSettingsForM4AType {
+    AudioChannelLayout stereoChannelLayout = {
+        .mChannelLayoutTag = self.sourceChannel == 2 ? kAudioChannelLayoutTag_Stereo : kAudioChannelLayoutTag_Mono,
+    };
+    NSMutableDictionary *settings = [@{
+        AVFormatIDKey:@(kAudioFormatMPEG4AAC),
+        AVNumberOfChannelsKey:@(self.sourceChannel),
+        AVSampleRateKey:@(self.sourceSampleRate),
+        AVEncoderBitRateKey:@(self.sourceEstimatedDataRate),
+        AVChannelLayoutKey:[NSData dataWithBytes:&stereoChannelLayout
+                                          length:offsetof(AudioChannelLayout, mChannelDescriptions)]
+    } mutableCopy];
     
+    return settings;
+}
+
+#pragma mark - Queue
+
++(dispatch_queue_t)audioExportQueue {
+    static dispatch_queue_t audioExportQueue = NULL;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        audioExportQueue = dispatch_queue_create("audioExport queue", NULL);
+    });
     
-    [assetWriter addInput:writerInput];
+    return audioExportQueue;
+}
+
++(dispatch_queue_t)audioExportGenerateQueue {
+    static dispatch_queue_t audioExportGenerateQueue = NULL;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        audioExportGenerateQueue = dispatch_queue_create("audioExport generate queue", NULL);
+    });
     
-    return YES;
+    return audioExportGenerateQueue;
+}
+
+
+#pragma mark - Audio Export Methods
+
+-(void)exportToURL:(NSURL *)outputURL complete:(ILABCompleteBlock)completeBlock {
+    [self exportingToURL:outputURL isPCMType:NO complete:completeBlock];
+}
+
+-(void)exportReverseToURL:(NSURL *)outputURL complete:(ILABCompleteBlock)completeBlock {
+    NSURL *tmpAudioFileURL = [[outputURL URLByDeletingLastPathComponent] URLByAppendingPathComponent:@"exported-audio.wav"];
+
+    __weak typeof(self) weakSelf = self;
+    
+    dispatch_semaphore_t audioSema = dispatch_semaphore_create(0);
+    [self exportingToURL:tmpAudioFileURL isPCMType:YES complete:^(BOOL complete, NSError *error) {
+        if (error) {
+            weakSelf.lastError = error;
+        }
+        dispatch_semaphore_signal(audioSema);
+    }];
+    dispatch_semaphore_wait(audioSema, DISPATCH_TIME_FOREVER);
+    
+    if (self.lastError) {
+        if (completeBlock) {
+            completeBlock(NO, self.lastError);
+        }
+        return;
+    }
+    
+    [self exportingReverseToURL:outputURL tmpAudioFileURL:tmpAudioFileURL complete:completeBlock];
 }
 
 -(BOOL)processSampleBuffer:(CMSampleBufferRef)sampleBuffer {
     return YES;
 }
 
--(BOOL)startReadingAndWriting {
-    if (![assetReader startReading]) {
-        lastError = assetReader.error;
-        return NO;
-    }
-    
-    if (![assetWriter startWriting]) {
-        lastError = assetWriter.error;
-        return NO;
-    }
-    
-    [assetWriter startSessionAtSourceTime:kCMTimeZero];
-    
-    __block BOOL audioFinished=NO;
-    
+-(void)exportingToURL:(NSURL *)destinationURL isPCMType:(BOOL)isPCMType complete:(ILABCompleteBlock)completeBlock {
     __weak typeof(self) weakSelf = self;
     
-    dispatch_group_enter(dispatchGroup);
+    [[NSFileManager defaultManager] removeItemAtURL:destinationURL error:nil];
     
-    // Specify the block to execute when the asset writer is ready for audio media data, and specify the queue to call it on.
-    [writerInput requestMediaDataWhenReadyOnQueue:audioQueue usingBlock:^{
-        
-        // Because the block is called asynchronously, check to see whether its task is complete.
-        if (audioFinished)
-            return;
-        
-        ILABAudioTrackExporter *exporter = weakSelf;
-        
-        BOOL completedOrFailed = NO;
-        // If the task isn't complete yet, make sure that the input is actually ready for more media data.
-        while ([exporter->writerInput isReadyForMoreMediaData] && !completedOrFailed) {
-            // Get the next audio sample buffer, and append it to the output file.
-            CMSampleBufferRef sampleBuffer = [exporter->trackOutput copyNextSampleBuffer];
-            if (sampleBuffer != NULL) {
-                if (![self processSampleBuffer:sampleBuffer]) {
-                    completedOrFailed=YES;
-                } else {
-                    BOOL success = [exporter->writerInput appendSampleBuffer:sampleBuffer];
-                    completedOrFailed = !success;
-                }
-                
-                // CFRelease not necessary?
-                CFRelease(sampleBuffer);
-            } else {
-                completedOrFailed = YES;
-            }
-        }
-        
-        if (completedOrFailed) {
-            // Mark the input as finished, but only if we haven't already done so, and then leave the dispatch group (since the audio work has finished).
-            BOOL oldFinished = audioFinished;
-            audioFinished = YES;
-            if (oldFinished == NO) {
-                [exporter->writerInput markAsFinished];
-            }
-            
-            dispatch_group_leave(exporter->dispatchGroup);
-        }
-    }];
+    NSError *error = nil;
     
-    dispatch_group_notify(dispatchGroup, mainQueue, ^{
-        
-        ILABAudioTrackExporter *exporter = weakSelf;
-        
-        dispatch_group_t finishGroup=dispatch_group_create();
-        
-        dispatch_group_enter(finishGroup);
-        [exporter->assetWriter finishWritingWithCompletionHandler:^{
-            dispatch_group_leave(finishGroup);
-        }];
-        
-        dispatch_group_notify(finishGroup, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-            dispatch_semaphore_signal(exporter->semi);
-            
-        });
-    });
+    // AVAssetReader
+    weakSelf.assetReader = [AVAssetReader
+                            assetReaderWithAsset:weakSelf.exportingAudioAsset
+                            error:&error];
+    if (error) {
+        weakSelf.lastError = error;
+        completeBlock(NO, error);
+        return;
+    }
+    AVAssetTrack *track = [weakSelf.exportingAudioAsset tracksWithMediaType:AVMediaTypeAudio][weakSelf.trackIndex];
+    weakSelf.assetReaderOutput = [AVAssetReaderTrackOutput
+                                  assetReaderTrackOutputWithTrack:track
+                                  outputSettings:isPCMType ? [weakSelf decompressionAudioSettingForPCMType] : [weakSelf decompressionAudioSettingForM4AType]];
+    [weakSelf.assetReader addOutput:weakSelf.assetReaderOutput];
     
-    return YES;
-}
+    if (![weakSelf.assetReader startReading]) {
+        weakSelf.lastError = [NSError ILABSessionError:ILABSessionErrorAVAssetReaderStartReading];
+        completeBlock(NO, weakSelf.lastError);
+        return;
+    }
 
-
-#pragma mark - Exporting
-
--(void)exportToURL:(NSURL *)outputURL complete:(ILABCompleteBlock)completeBlock {
-    if (_exporting) {
-        if (completeBlock) {
-            completeBlock(NO, [NSError reverseVideoExportSessionError:ILABAudioTrackExporterExportInProgressError]);
-        }
-        
+    // AVAssetWriter
+    weakSelf.assetWriter = [AVAssetWriter
+                            assetWriterWithURL:destinationURL
+                            fileType:isPCMType ? AVFileTypeWAVE : AVFileTypeAppleM4A
+                            error:&error];
+    if (error) {
+        weakSelf.lastError = error;
+        completeBlock(NO, weakSelf.lastError);
+        return;
+    }
+    weakSelf.assetWriterInput = [AVAssetWriterInput
+                                 assetWriterInputWithMediaType:AVMediaTypeAudio
+                                 outputSettings:isPCMType ? [weakSelf compressionAudioSettingForPCMType] : [weakSelf compressionAudioSettingsForM4AType]];
+    [weakSelf.assetWriter addInput:weakSelf.assetWriterInput];
+    
+    if (![weakSelf.assetWriter startWriting]) {
+        weakSelf.lastError = [NSError ILABSessionError:ILABSessionErrorAVAssetWriterStartWriting];
+        completeBlock(NO, weakSelf.lastError);
         return;
     }
     
-    _exporting=YES;
-    
-    exportURL=[outputURL copy];
-    
-    __block BOOL result=NO;
-    
-    dispatch_async(mainQueue, ^{
-        if (![self setupReaderAndWriter]) {
-            return;
-        }
+    [weakSelf.assetWriter startSessionAtSourceTime:kCMTimeZero];
 
-        if (![self startReadingAndWriting]) {
-            return;
-        }
-        
-        result=YES;
-    });
-    
-    while(dispatch_semaphore_wait(semi, DISPATCH_TIME_NOW)) {
-        [[NSRunLoop mainRunLoop] runUntilDate:[NSDate date]];
-    }
-    
-    _exporting=NO;
-    
-    if (completeBlock) {
-        completeBlock(result, lastError);
-    }
-}
-
--(void)exportReverseToURL:(NSURL *)outputURL complete:(ILABCompleteBlock)completeBlock {
-    NSURL *exportAudioURL = [[outputURL URLByDeletingLastPathComponent] URLByAppendingPathComponent:@"exported-audio.wav"];
-
-    __weak typeof(self) weakSelf = self;
-
-    [self exportToURL:exportAudioURL complete:^(BOOL complete, NSError *error) {
-        if (!complete) {
-            if (completeBlock) {
-                completeBlock(complete, error);
+    [weakSelf.assetWriterInput requestMediaDataWhenReadyOnQueue:[[self class] audioExportGenerateQueue] usingBlock:^{
+        while ([weakSelf.assetWriterInput isReadyForMoreMediaData]) {
+            CMSampleBufferRef nextSampleBuffer = [weakSelf.assetReaderOutput copyNextSampleBuffer];
+            if (nextSampleBuffer) {
+                [weakSelf.assetWriterInput appendSampleBuffer:nextSampleBuffer];
+                CFRelease(nextSampleBuffer);
+            } else {
+                [weakSelf.assetWriterInput markAsFinished];
+                [weakSelf.assetWriter finishWritingWithCompletionHandler:^{
+                    completeBlock(YES, nil);
+                }];
+                break;
             }
-            
-            return;
-        }
-        
-        ILABAudioTrackExporter *exporter = weakSelf;
-        OSStatus theErr = noErr;
-        
-        // set up input file
-        AudioFileID inputAudioFile;
-        theErr = AudioFileOpenURL((__bridge CFURLRef)exportAudioURL, kAudioFileReadPermission, 0, &inputAudioFile);
-        if (theErr != noErr) {
-            exporter->lastError = [NSError errorWithAudioFileStatusCode:theErr];
-            if (completeBlock) {
-                completeBlock(NO, exporter->lastError);
-            }
-            
-            return;
-        }
-        
-        AudioStreamBasicDescription theFileFormat;
-        UInt32 thePropertySize = sizeof(theFileFormat);
-        theErr = AudioFileGetProperty(inputAudioFile, kAudioFilePropertyDataFormat, &thePropertySize, &theFileFormat);
-        if (theErr != noErr) {
-            AudioFileClose(inputAudioFile);
-            exporter->lastError = [NSError errorWithAudioFileStatusCode:theErr];
-            
-            if (completeBlock) {
-                completeBlock(NO, exporter->lastError);
-            }
-            
-            return;
-        }
-        
-        UInt64 fileDataSize = 0;
-        thePropertySize = sizeof(fileDataSize);
-        theErr = AudioFileGetProperty(inputAudioFile, kAudioFilePropertyAudioDataByteCount, &thePropertySize, &fileDataSize);
-        if (theErr != noErr) {
-            AudioFileClose(inputAudioFile);
-            exporter->lastError = [NSError errorWithAudioFileStatusCode:theErr];
-            if (completeBlock) {
-                completeBlock(NO, exporter->lastError);
-            }
-            
-            return;
-        }
-        
-        AudioFileID outputAudioFile;
-        theErr=AudioFileCreateWithURL((__bridge CFURLRef)outputURL,
-                                      kAudioFileWAVEType,
-                                      &theFileFormat,
-                                      kAudioFileFlags_EraseFile,
-                                      &outputAudioFile);
-        if (theErr != noErr) {
-            AudioFileClose(inputAudioFile);
-            exporter->lastError = [NSError errorWithAudioFileStatusCode:theErr];
-
-            if (completeBlock) {
-                completeBlock(NO, exporter->lastError);
-            }
-            
-            return;
-        }
-        
-        UInt64 dataSize = fileDataSize;
-        SInt32* theData = malloc((UInt32)dataSize);
-        
-        if (theData == NULL) {
-            // TODO: Set lastError to "Could not allocate audio pointer"
-            AudioFileClose(inputAudioFile);
-            AudioFileClose(outputAudioFile);
-
-            if (completeBlock) {
-                completeBlock(NO, exporter->lastError);
-            }
-            
-            return;
-        }
-        
-        
-        UInt32 bytesRead=(UInt32)dataSize;
-        theErr = AudioFileReadBytes(inputAudioFile, false, 0, &bytesRead, theData);
-        if (theErr != noErr) {
-            AudioFileClose(inputAudioFile);
-            AudioFileClose(outputAudioFile);
-            exporter->lastError = [NSError errorWithAudioFileStatusCode:theErr];
-
-            if (completeBlock) {
-                completeBlock(NO, exporter->lastError);
-            }
-            
-            return;
-        }
-        
-        Float32 *floatData=malloc((UInt32)dataSize);
-        if (floatData == NULL) {
-            free(theData);
-            
-            // TODO: Set lastError to "Could not allocate audio pointer"
-            AudioFileClose(inputAudioFile);
-            AudioFileClose(outputAudioFile);
-            
-            if (completeBlock) {
-                completeBlock(NO, exporter->lastError);
-            }
-            
-            return;
-        }
-        
-        vDSP_vflt32((const int *)theData, 1, floatData, 1, (UInt32)dataSize/sizeof(Float32));
-        vDSP_vrvrs(floatData, 1, (UInt32)dataSize/sizeof(Float32));
-        vDSP_vfix32(floatData, 1, (int *)theData, 1, (UInt32)dataSize/sizeof(Float32));
-        
-        UInt32 bytesWritten=(UInt32)dataSize;
-        theErr=AudioFileWriteBytes(outputAudioFile, false, 0, &bytesWritten, theData);
-        if (theErr != noErr) {
-            free(theData);
-            free(floatData);
-            
-            AudioFileClose(inputAudioFile);
-            AudioFileClose(outputAudioFile);
-            exporter->lastError = [NSError errorWithAudioFileStatusCode:theErr];
-
-            if (completeBlock) {
-                completeBlock(NO, exporter->lastError);
-            }
-            
-            return;
-        }
-        
-        free(theData);
-        free(floatData);
-        AudioFileClose(inputAudioFile);
-        AudioFileClose(outputAudioFile);
-        
-        [[NSFileManager defaultManager] removeItemAtURL:exportAudioURL error:nil];
-        
-        if (completeBlock) {
-            completeBlock(YES, nil);
         }
     }];
+}
+
+-(void)exportingReverseToURL:(NSURL *)outputURL tmpAudioFileURL:(NSURL *)tmpAudioFileURL complete:(ILABCompleteBlock)completeBlock {
+    
+    __weak typeof(self) weakSelf = self;
+    
+    // set up input file
+    AudioFileID inputAudioFile;
+    OSStatus theErr = AudioFileOpenURL((__bridge CFURLRef)tmpAudioFileURL,
+                                       kAudioFileReadPermission, 0, &inputAudioFile);
+    if (theErr != noErr) {
+        weakSelf.lastError = [NSError errorWithAudioFileStatusCode:theErr];
+        if (completeBlock) {
+            completeBlock(NO, weakSelf.lastError);
+        }
+        return;
+    }
+    
+    AudioStreamBasicDescription theFileFormat;
+    UInt32 thePropertySize = sizeof(theFileFormat);
+    theErr = AudioFileGetProperty(inputAudioFile, kAudioFilePropertyDataFormat, &thePropertySize, &theFileFormat);
+    if (theErr != noErr) {
+        AudioFileClose(inputAudioFile);
+        weakSelf.lastError = [NSError errorWithAudioFileStatusCode:theErr];
+        if (completeBlock) {
+            completeBlock(NO, weakSelf.lastError);
+        }
+        return;
+    }
+    
+    UInt64 fileDataSize = 0;
+    thePropertySize = sizeof(fileDataSize);
+    theErr = AudioFileGetProperty(inputAudioFile, kAudioFilePropertyAudioDataByteCount, &thePropertySize, &fileDataSize);
+    if (theErr != noErr) {
+        AudioFileClose(inputAudioFile);
+        weakSelf.lastError = [NSError errorWithAudioFileStatusCode:theErr];
+        if (completeBlock) {
+            completeBlock(NO, weakSelf.lastError);
+        }
+        return;
+    }
+    
+    AudioFileID outputAudioFile;
+    theErr = AudioFileCreateWithURL((__bridge CFURLRef)outputURL,
+                                    kAudioFileWAVEType,
+                                    &theFileFormat,
+                                    kAudioFileFlags_EraseFile,
+                                    &outputAudioFile);
+    if (theErr != noErr) {
+        AudioFileClose(inputAudioFile);
+        weakSelf.lastError = [NSError errorWithAudioFileStatusCode:theErr];
+        if (completeBlock) {
+            completeBlock(NO, weakSelf.lastError);
+        }
+        return;
+    }
+    
+    UInt64 dataSize = fileDataSize;
+    SInt32* theData = malloc((UInt32)dataSize);
+    if (theData == NULL) {
+        // TODO: Set lastError to "Could not allocate audio pointer"
+        AudioFileClose(inputAudioFile);
+        AudioFileClose(outputAudioFile);
+        if (completeBlock) {
+            completeBlock(NO, weakSelf.lastError);
+        }
+        return;
+    }
+
+    UInt32 bytesRead=(UInt32)dataSize;
+    theErr = AudioFileReadBytes(inputAudioFile, false, 0, &bytesRead, theData);
+    if (theErr != noErr) {
+        AudioFileClose(inputAudioFile);
+        AudioFileClose(outputAudioFile);
+        weakSelf.lastError = [NSError errorWithAudioFileStatusCode:theErr];
+        if (completeBlock) {
+            completeBlock(NO, weakSelf.lastError);
+        }
+        return;
+    }
+    
+    Float32 *floatData=malloc((UInt32)dataSize);
+    if (floatData == NULL) {
+        free(theData);
+        // TODO: Set lastError to "Could not allocate audio pointer"
+        AudioFileClose(inputAudioFile);
+        AudioFileClose(outputAudioFile);
+        if (completeBlock) {
+            completeBlock(NO, weakSelf.lastError);
+        }
+        return;
+    }
+    
+    vDSP_vflt32((const int *)theData, 1, floatData, 1, (UInt32)dataSize/sizeof(Float32));
+    vDSP_vrvrs(floatData, 1, (UInt32)dataSize/sizeof(Float32));
+    vDSP_vfix32(floatData, 1, (int *)theData, 1, (UInt32)dataSize/sizeof(Float32));
+    
+    UInt32 bytesWritten=(UInt32)dataSize;
+    theErr=AudioFileWriteBytes(outputAudioFile, false, 0, &bytesWritten, theData);
+    if (theErr != noErr) {
+        free(theData);
+        free(floatData);
+        
+        AudioFileClose(inputAudioFile);
+        AudioFileClose(outputAudioFile);
+        weakSelf.lastError = [NSError errorWithAudioFileStatusCode:theErr];
+        if (completeBlock) {
+            completeBlock(NO, weakSelf.lastError);
+        }
+        return;
+    }
+    
+    free(theData);
+    free(floatData);
+    AudioFileClose(inputAudioFile);
+    AudioFileClose(outputAudioFile);
+    
+    [[NSFileManager defaultManager] removeItemAtURL:tmpAudioFileURL error:nil];
+    
+    if (completeBlock) {
+        completeBlock(YES, nil);
+    }
 }
 
 @end
