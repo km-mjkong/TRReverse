@@ -140,7 +140,7 @@
 				TargetAttributes = {
 					FF76ACEB1F43CCCC00347273 = {
 						CreatedOnToolsVersion = 8.3.3;
-						DevelopmentTeam = M7ULFZ4G22;
+						DevelopmentTeam = Y59HNQR68T;
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -202,7 +202,7 @@
 			files = (
 			);
 			inputPaths = (
-				"${SRCROOT}/Pods/Target Support Files/Pods-ILABReverseVideoExporterDemo/Pods-ILABReverseVideoExporterDemo-frameworks.sh",
+				"${PODS_ROOT}/Target Support Files/Pods-ILABReverseVideoExporterDemo/Pods-ILABReverseVideoExporterDemo-frameworks.sh",
 				"${BUILT_PRODUCTS_DIR}/M13ProgressSuite/M13ProgressSuite.framework",
 				"${BUILT_PRODUCTS_DIR}/OHQBImagePicker/OHQBImagePicker.framework",
 				"${BUILT_PRODUCTS_DIR}/TRReverse/TRReverse.framework",
@@ -215,7 +215,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "\"${SRCROOT}/Pods/Target Support Files/Pods-ILABReverseVideoExporterDemo/Pods-ILABReverseVideoExporterDemo-frameworks.sh\"\n";
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-ILABReverseVideoExporterDemo/Pods-ILABReverseVideoExporterDemo-frameworks.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
 /* End PBXShellScriptBuildPhase section */
@@ -348,10 +348,10 @@
 			baseConfigurationReference = 2F799591F8C3982442A39C8C /* Pods-ILABReverseVideoExporterDemo.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				DEVELOPMENT_TEAM = M7ULFZ4G22;
+				DEVELOPMENT_TEAM = Y59HNQR68T;
 				INFOPLIST_FILE = ILABReverseVideoExporterDemo/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
-				PRODUCT_BUNDLE_IDENTIFIER = com.interfacelab.ILABReverseVideoExporterDemo;
+				PRODUCT_BUNDLE_IDENTIFIER = com.kinemaster.dev.reversedemo;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Debug;
@@ -361,10 +361,10 @@
 			baseConfigurationReference = C1762F98CA1651CC462DE239 /* Pods-ILABReverseVideoExporterDemo.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				DEVELOPMENT_TEAM = M7ULFZ4G22;
+				DEVELOPMENT_TEAM = Y59HNQR68T;
 				INFOPLIST_FILE = ILABReverseVideoExporterDemo/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
-				PRODUCT_BUNDLE_IDENTIFIER = com.interfacelab.ILABReverseVideoExporterDemo;
+				PRODUCT_BUNDLE_IDENTIFIER = com.kinemaster.dev.reversedemo;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Release;
