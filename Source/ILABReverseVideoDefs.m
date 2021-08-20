@@ -12,30 +12,30 @@ NSString * const kILABReverseVideoExportSessionErrorDomain = @"kILABReverseVideo
 
 @implementation NSError(ILABReverseVideoExportSession)
 
-+(NSError *)reverseVideoExportSessionError:(ILABReverseVideoExportSessionErrorStatus)errorStatus {
++(NSError *)ILABSessionError:(ILABSessionError)errorStatus {
     switch(errorStatus) {
-        case ILABReverseVideoExportSessionMissingOutputError:
-            return [NSError errorWithDomain:kILABReverseVideoExportSessionErrorDomain code:errorStatus userInfo:@{NSLocalizedDescriptionKey: @"Missing URL for output."}];
-        case ILABReverseVideoExportSessionUnableToStartReaderError:
-            return [NSError errorWithDomain:kILABReverseVideoExportSessionErrorDomain code:errorStatus userInfo:@{NSLocalizedDescriptionKey: @"Unable to start reader."}];
-        case ILABReverseVideoExportSessionNoSamplesError:
+        case ILABSessionErrorMissingOutputURL:
+            return [NSError errorWithDomain:kILABReverseVideoExportSessionErrorDomain code:errorStatus userInfo:@{NSLocalizedDescriptionKey: @"Missing Output URL."}];
+        case ILABSessionErrorAVAssetReaderStartReading:
+            return [NSError errorWithDomain:kILABReverseVideoExportSessionErrorDomain code:errorStatus userInfo:@{NSLocalizedDescriptionKey: @"AVAssetReader startReading Error."}];
+        case ILABSessionErrorVideoNoSamples:
             return [NSError errorWithDomain:kILABReverseVideoExportSessionErrorDomain code:errorStatus userInfo:@{NSLocalizedDescriptionKey: @"No samples in source video."}];
-        case ILABReverseVideoExportSessionUnableToStartWriterError:
-            return [NSError errorWithDomain:kILABReverseVideoExportSessionErrorDomain code:errorStatus userInfo:@{NSLocalizedDescriptionKey: @"Unable to start writer."}];
-        case ILABReverseVideoExportSessionUnableToWriteFrameError:
-            return [NSError errorWithDomain:kILABReverseVideoExportSessionErrorDomain code:errorStatus userInfo:@{NSLocalizedDescriptionKey: @"Unable to append frame to output."}];
-        case ILABReverseVideoExportUserCancel:
+        case ILABSessionErrorAVAssetWriterStartWriting:
+            return [NSError errorWithDomain:kILABReverseVideoExportSessionErrorDomain code:errorStatus userInfo:@{NSLocalizedDescriptionKey: @"AVAssetWriter startWriting Error."}];
+        case ILABSessionErrorVideoUnableToWirteFrame:
+            return [NSError errorWithDomain:kILABReverseVideoExportSessionErrorDomain code:errorStatus userInfo:@{NSLocalizedDescriptionKey: @"Appending pixel buffer Error"}];
+        case ILABSessionErrorUserCancel:
             return [NSError errorWithDomain:kILABReverseVideoExportSessionErrorDomain code:errorStatus userInfo:@{NSLocalizedDescriptionKey: @"User cancel."}];
-        case ILABReverseVideoExportSessionAVAssetReaderError:
+        case ILABSessionErrorAVAssetReaderReading:
             return [NSError errorWithDomain:kILABReverseVideoExportSessionErrorDomain code:errorStatus userInfo:@{NSLocalizedDescriptionKey: @"Cannot open, this media may be damaged."}];
 
-        case ILABAudioTrackExporterInvalidTrackIndexError:
+        case ILABSessionErrorAudioInvalidTrackIndex:
             return [NSError errorWithDomain:kILABReverseVideoExportSessionErrorDomain code:errorStatus userInfo:@{NSLocalizedDescriptionKey: @"The specified track index is invalid."}];
-        case ILABAudioTrackExporterCannotAddInputError:
+        case ILABSessionErrorAudioCannotAddInput:
             return [NSError errorWithDomain:kILABReverseVideoExportSessionErrorDomain code:errorStatus userInfo:@{NSLocalizedDescriptionKey: @"Cannot add input for audio export."}];
-        case ILABAudioTrackExporterCannotAddOutputError:
+        case ILABSessionErrorAudioCanAddOutput:
             return [NSError errorWithDomain:kILABReverseVideoExportSessionErrorDomain code:errorStatus userInfo:@{NSLocalizedDescriptionKey: @"Cannout add output for audio export."}];
-        case ILABAudioTrackExporterExportInProgressError:
+        case ILABSessionErrorNoCompleteAudioExport:
             return [NSError errorWithDomain:kILABReverseVideoExportSessionErrorDomain code:errorStatus userInfo:@{NSLocalizedDescriptionKey: @"Export is already in progress."}];
     }
 }

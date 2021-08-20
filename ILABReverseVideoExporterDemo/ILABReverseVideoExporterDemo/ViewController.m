@@ -23,11 +23,10 @@
 
 @property (weak, nonatomic) IBOutlet UILabel *startTimeLabel;
 @property (weak, nonatomic) IBOutlet UILabel *durationLabel;
-@property (weak, nonatomic) IBOutlet UIButton *reverseVideoButton;
-@property (weak, nonatomic) IBOutlet UIButton *pickerMediaButton;
 
 @property (strong, nonatomic) AVAsset *asset;
-@property (nonatomic, strong) ILABReverseVideoExportSession *exportSession;
+@property (nonatomic, strong) ILABReverseVideoExportSession *reverseSession;
+@property (nonatomic, strong) ILABTranscodeSession *transcodeSession;
 
 // picker
 @property (nonatomic, strong) UITextField *textField;
@@ -73,13 +72,20 @@
 }
 
 - (IBAction)reverseVideoTouched:(id)sender {
-    [self processAsset:self.asset startTime:self.startTime duration:self.duration];
+    [self reverseAsset:self.asset startTime:self.startTime duration:self.duration];
 }
 
 - (IBAction)cancelReverse:(id)sender {
-    if (self.exportSession) {
-        [self.exportSession cancelReverseExport];
+    if (self.reverseSession) {
+        [self.reverseSession cancelReverseExport];
     }
+    if (self.transcodeSession) {
+        [self.transcodeSession cancelTranscode];
+    }
+}
+
+- (IBAction)transcodeTouched:(id)sender {
+    [self transcodeAsset:self.asset startTime:self.startTime duration:self.duration];
 }
 
 - (NSString *)timeFormatted:(CMTime)time
@@ -96,7 +102,7 @@
 
 - (void)qb_imagePickerController:(QBImagePickerController *)imagePickerController didFinishPickingItems:(NSArray *)items {
     PHVideoRequestOptions *reqOpts=[PHVideoRequestOptions new];
-    reqOpts.version=PHImageRequestOptionsVersionCurrent;
+    reqOpts.version=(PHVideoRequestOptionsVersion)PHImageRequestOptionsVersionCurrent;
     reqOpts.deliveryMode=PHVideoRequestOptionsDeliveryModeHighQualityFormat;
     reqOpts.networkAccessAllowed = NO;
     reqOpts.progressHandler = ^(double progress, NSError * _Nullable error, BOOL * _Nonnull stop, NSDictionary * _Nullable info) {
@@ -109,23 +115,21 @@
                                                     options:reqOpts
                                               resultHandler:^(AVAsset * _Nullable asset, AVAudioMix * _Nullable audioMix, NSDictionary * _Nullable info) {
                                                   dispatch_async(dispatch_get_main_queue(), ^{
+                                                      AVAssetTrack *vTrack = [asset tracksWithMediaType:AVMediaTypeVideo].firstObject;
                                                       weakSelf.asset = asset;
                                                       weakSelf.startTime = kCMTimeZero;
-                                                      weakSelf.duration = asset.duration;
+                                                      weakSelf.duration = vTrack.timeRange.duration;
                                                       [weakSelf.startTimeLabel setText:[self timeFormatted:kCMTimeZero]];
-                                                      [weakSelf.durationLabel setText:[self timeFormatted:asset.duration]];
+                                                      [weakSelf.durationLabel setText:[self timeFormatted:weakSelf.duration]];
                                                   });
                                               }];
 
     [self dismissViewControllerAnimated:YES completion:nil];
 }
 
--(void)processAsset:(AVAsset *)asset startTime:(CMTime)startTime duration:(CMTime)duration {
+-(void)reverseAsset:(AVAsset *)asset startTime:(CMTime)startTime duration:(CMTime)duration {
     if (asset == nil) {
-        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Error" message:@"Please picker media" preferredStyle:UIAlertControllerStyleAlert];
-        UIAlertAction *action = [UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil];
-        [alert addAction:action];
-        [self presentViewController:alert animated:YES completion:nil];
+        [self displayPickerError];
         return;
     }
 
@@ -137,55 +141,47 @@
     progressLabel.hidden = NO;
     
     NSString *cachePath = NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES).firstObject;
-    NSURL *outputURL = [NSURL fileURLWithPath:[cachePath stringByAppendingFormat:@"%@-reversed.mov", [[NSUUID UUID] UUIDString]]];
+    NSURL *outputURL = [NSURL fileURLWithPath:[cachePath stringByAppendingFormat:@"/%@-reversed.mov", [[NSUUID UUID] UUIDString]]];
     NSLog(@"Output URL: %@", outputURL.path);
     
-    self.exportSession = [ILABReverseVideoExportSession exportSessionWithAsset:asset
+    self.reverseSession = [ILABReverseVideoExportSession exportSessionWithAsset:asset
                                                                      timeRange:CMTimeRangeMake(startTime, duration)
                                                                      outputURL:outputURL];
-    self.exportSession.deleteCacheFile = NO;
-
+    self.reverseSession.showDebug = YES;
     __weak typeof(self) weakSelf = self;
-    ILABProgressBlock progressBlock = ^(NSString *currentOperation, float progress) {
-        if (weakSelf) {
-            __strong typeof(weakSelf) strongSelf = weakSelf;
-            
-            progressLabel.text = currentOperation;
-            
-            if (progress == INFINITY) {
-                strongSelf->progressBar.indeterminate = YES;
-            } else {
-                strongSelf->progressBar.indeterminate = NO;
-                [strongSelf->progressBar setProgress:progress animated:NO];
-            }
-        }
-    };
     
-    ILABCompleteBlock completeBlock = ^(BOOL complete, NSError *error) {
-        NSLog(@"Done.");
+    [self.reverseSession exportAsynchronously:^(NSString *currentOperation, float progress) {
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        
+        progressLabel.text = currentOperation;
+        
+        if (progress == INFINITY) {
+            strongSelf->progressBar.indeterminate = YES;
+        } else {
+            strongSelf->progressBar.indeterminate = NO;
+            [strongSelf->progressBar setProgress:progress animated:NO];
+        }
+    } complete:^(BOOL complete, NSError *error) {
         dispatch_async(dispatch_get_main_queue(), ^{
-            if (weakSelf) {
-                __strong typeof(weakSelf) strongSelf = weakSelf;
-                strongSelf->progressLabel.text = @"Done.";
-                strongSelf->progressBar.indeterminate = NO;
-                [strongSelf->progressBar performAction:(complete) ? M13ProgressViewActionSuccess : M13ProgressViewActionFailure animated:YES];
-                
-                if (complete) {
-                    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-                        if (weakSelf) {
-                            __strong typeof(weakSelf) strongSelf = weakSelf;
-                            [strongSelf showReversedVideoAsset:[AVURLAsset assetWithURL:outputURL]];
-                        }
-                    });
-                }
+            __strong typeof(weakSelf) strongSelf = weakSelf;
+            strongSelf->progressLabel.text = @"Done.";
+            strongSelf->progressBar.indeterminate = NO;
+            [strongSelf->progressBar performAction:(complete) ? M13ProgressViewActionSuccess : M13ProgressViewActionFailure animated:YES];
+            
+            if (complete) {
+                dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+                    if (weakSelf) {
+                        __strong typeof(weakSelf) strongSelf = weakSelf;
+                        strongSelf->_reverseSession = nil;
+                        [strongSelf playVideoAsset:[AVURLAsset assetWithURL:outputURL]];
+                    }
+                });
             }
         });
-    };
-    
-    [self.exportSession exportAsynchronously:progressBlock complete:completeBlock];
+    }];
 }
 
--(void)showReversedVideoAsset:(AVAsset *)asset {
+-(void)playVideoAsset:(AVAsset *)asset {
     self.asset = nil;
 
     [self.startTimeLabel setText:[self timeFormatted:kCMTimeZero]];
@@ -197,6 +193,70 @@
     AVPlayerViewController *avpc = [self.storyboard instantiateViewControllerWithIdentifier:@"avPlayer"];
     avpc.player = [AVPlayer playerWithPlayerItem:[AVPlayerItem playerItemWithAsset:asset]];
     [self presentViewController:avpc animated:YES completion:nil];
+}
+
+- (void)displayPickerError {
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Error" message:@"Please picker media" preferredStyle:UIAlertControllerStyleAlert];
+    UIAlertAction *action = [UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil];
+    [alert addAction:action];
+    [self presentViewController:alert animated:YES completion:nil];
+}
+
+- (void)transcodeAsset:(AVAsset *)asset startTime:(CMTime)startTime duration:(CMTime)duration {
+    if (asset == nil) {
+        [self displayPickerError];
+        return;
+    }
+    
+    [progressBar performAction:M13ProgressViewActionNone animated:NO];
+    progressBar.hidden = NO;
+    [progressBar setProgress:0. animated:NO];
+    
+    progressLabel.text = @"";
+    progressLabel.hidden = NO;
+    
+    NSString *cachePath = NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES).firstObject;
+    NSURL *outputURL = [NSURL fileURLWithPath:[cachePath stringByAppendingFormat:@"/%@-transcoded.mov", [[NSUUID UUID] UUIDString]]];
+    NSLog(@"Output URL: %@", outputURL.path);
+
+    self.transcodeSession = [ILABTranscodeSession transcodeSessionWithAsset:asset
+                                                                  timeRange:CMTimeRangeMake(startTime, duration)
+                                                                  outputURL:outputURL];
+    self.transcodeSession.showDebug = YES;
+//    self.transcodeSession.frameRate = 12;
+//    self.transcodeSession.size = CGSizeMake(720, 1280);
+
+    __weak typeof(self) weakSelf = self;
+    [self.transcodeSession transcodeAsynchronously:^(NSString *currentOperation, float progress) {
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        
+        progressLabel.text = currentOperation;
+        
+        if (progress == INFINITY) {
+            strongSelf->progressBar.indeterminate = YES;
+        } else {
+            strongSelf->progressBar.indeterminate = NO;
+            [strongSelf->progressBar setProgress:progress animated:NO];
+        }
+    } complete:^(BOOL complete, NSError *error) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            __strong typeof(weakSelf) strongSelf = weakSelf;
+            strongSelf->progressLabel.text = @"Done.";
+            strongSelf->progressBar.indeterminate = NO;
+            [strongSelf->progressBar performAction:(complete) ? M13ProgressViewActionSuccess : M13ProgressViewActionFailure animated:YES];
+            
+            if (complete) {
+                dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+                    if (weakSelf) {
+                        __strong typeof(weakSelf) strongSelf = weakSelf;
+                        strongSelf->_transcodeSession = nil;
+                        [strongSelf playVideoAsset:[AVURLAsset assetWithURL:outputURL]];
+                    }
+                });
+            }
+        });
+    }];
+
 }
 
 #pragma mark - picker

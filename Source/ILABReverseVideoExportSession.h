@@ -28,8 +28,6 @@
 @property (assign, nonatomic) NSInteger samplesPerPass;             /**< Samples per pass when reversing video */
 @property (assign, nonatomic) BOOL skipAudio;                       /**< Skip the processing of audio */
 @property (copy, nonatomic) NSURL *outputURL;                       /**< URL to output reverse video to */
-@property (strong, nonatomic) NSDictionary *videoOutputSettings;    /**< Output settings for reversed video */
-@property (strong, nonatomic) NSDictionary *audioOutputSettings;    /**< Output settings for reversed audio */
 @property (nonatomic) BOOL deleteCacheFile;                         /**< After finishing reverse work, delete temporary files in the Library/Caches, default value is YES */
 
 /**

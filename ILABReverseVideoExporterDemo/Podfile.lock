@@ -1,7 +1,7 @@
 PODS:
   - M13ProgressSuite (1.2.9)
   - OHQBImagePicker (1.0.12)
-  - TRReverse (0.1.7)
+  - TRReverse (1.0.2)
 
 DEPENDENCIES:
   - M13ProgressSuite
@@ -9,7 +9,7 @@ DEPENDENCIES:
   - TRReverse (from `../`)
 
 SPEC REPOS:
-  https://github.com/cocoapods/specs.git:
+  https://github.com/CocoaPods/Specs.git:
     - M13ProgressSuite
     - OHQBImagePicker
 
@@ -20,8 +20,8 @@ EXTERNAL SOURCES:
 SPEC CHECKSUMS:
   M13ProgressSuite: ea9f7263e73e9215e6849dfa54e29ee0ad6a145c
   OHQBImagePicker: d2fe82bf7c968365c699962be76e13265f1f6d42
-  TRReverse: 22f6eff294ea99aed4faa319cdce8ce90e99b4bf
+  TRReverse: 697f56e20bac610f8f8f9f6f24d6736391ecf43d
 
 PODFILE CHECKSUM: f671459d8628b504abec4f2990a3419ce7fbb648
 
-COCOAPODS: 1.5.3
+COCOAPODS: 1.10.1

@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		E29CABA026C3592500A4305B /* ILABTranscodeSession.h in Headers */ = {isa = PBXBuildFile; fileRef = E29CAB9E26C3592500A4305B /* ILABTranscodeSession.h */; };
+		E29CABA126C3592500A4305B /* ILABTranscodeSession.m in Sources */ = {isa = PBXBuildFile; fileRef = E29CAB9F26C3592500A4305B /* ILABTranscodeSession.m */; };
 		FF76ACE21F43CB2700347273 /* ILABReverseVideoExporter.h in Headers */ = {isa = PBXBuildFile; fileRef = FF76ACE01F43CB2700347273 /* ILABReverseVideoExporter.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		FF76AD0C1F43D00100347273 /* ILABAudioTrackExporter.h in Headers */ = {isa = PBXBuildFile; fileRef = FF76AD061F43D00100347273 /* ILABAudioTrackExporter.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		FF76AD0D1F43D00100347273 /* ILABAudioTrackExporter.m in Sources */ = {isa = PBXBuildFile; fileRef = FF76AD071F43D00100347273 /* ILABAudioTrackExporter.m */; };
@@ -17,6 +19,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		E29CAB9E26C3592500A4305B /* ILABTranscodeSession.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ILABTranscodeSession.h; sourceTree = "<group>"; };
+		E29CAB9F26C3592500A4305B /* ILABTranscodeSession.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ILABTranscodeSession.m; sourceTree = "<group>"; };
 		FF76ACD21F43CA0E00347273 /* ILABReverseVideoExporter.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = ILABReverseVideoExporter.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		FF76ACDE1F43CB2700347273 /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		FF76ACE01F43CB2700347273 /* ILABReverseVideoExporter.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ILABReverseVideoExporter.h; sourceTree = "<group>"; };
@@ -74,6 +78,8 @@
 				FF76AD071F43D00100347273 /* ILABAudioTrackExporter.m */,
 				FF76AD0A1F43D00100347273 /* ILABReverseVideoExportSession.h */,
 				FF76AD0B1F43D00100347273 /* ILABReverseVideoExportSession.m */,
+				E29CAB9E26C3592500A4305B /* ILABTranscodeSession.h */,
+				E29CAB9F26C3592500A4305B /* ILABTranscodeSession.m */,
 			);
 			path = Source;
 			sourceTree = "<group>";
@@ -86,6 +92,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				FF76AD0C1F43D00100347273 /* ILABAudioTrackExporter.h in Headers */,
+				E29CABA026C3592500A4305B /* ILABTranscodeSession.h in Headers */,
 				FF76ACE21F43CB2700347273 /* ILABReverseVideoExporter.h in Headers */,
 				FF76AD101F43D00100347273 /* ILABReverseVideoExportSession.h in Headers */,
 				FF76AD0E1F43D00100347273 /* ILABReverseVideoDefs.h in Headers */,
@@ -134,6 +141,7 @@
 			developmentRegion = English;
 			hasScannedForEncodings = 0;
 			knownRegions = (
+				English,
 				en,
 			);
 			mainGroup = FF76ACC81F43CA0E00347273;
@@ -161,6 +169,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E29CABA126C3592500A4305B /* ILABTranscodeSession.m in Sources */,
 				FF76AD0F1F43D00100347273 /* ILABReverseVideoDefs.m in Sources */,
 				FF76AD111F43D00100347273 /* ILABReverseVideoExportSession.m in Sources */,
 				FF76AD0D1F43D00100347273 /* ILABAudioTrackExporter.m in Sources */,

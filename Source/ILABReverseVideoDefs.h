@@ -10,19 +10,20 @@
 extern NSString * const kILABReverseVideoExportSessionErrorDomain;
 
 typedef enum : NSInteger {
-    ILABReverseVideoExportSessionMissingOutputError        = -100,
-    ILABReverseVideoExportSessionUnableToStartReaderError  = -101,
-    ILABReverseVideoExportSessionNoSamplesError            = -102,
-    ILABReverseVideoExportSessionUnableToStartWriterError  = -103,
-    ILABReverseVideoExportSessionUnableToWriteFrameError   = -104,
-    ILABReverseVideoExportUserCancel                       = -105,
-    ILABReverseVideoExportSessionAVAssetReaderError        = -106,
+    ILABSessionErrorMissingOutputURL              = -101,
+    ILABSessionErrorAVAssetReaderStartReading        = -102,
+    ILABSessionErrorVideoNoSamples                  = -103,
+    ILABSessionErrorAVAssetWriterStartWriting        = -104,
+    ILABSessionErrorVideoUnableToWirteFrame         = -105,
+    ILABSessionErrorUserCancel                      = -106,
+    ILABSessionErrorAVAssetReaderReading                   = -107,
     
-    ILABAudioTrackExporterInvalidTrackIndexError           = -200,
-    ILABAudioTrackExporterCannotAddInputError              = -201,
-    ILABAudioTrackExporterCannotAddOutputError             = -202,
-    ILABAudioTrackExporterExportInProgressError            = -203,
-} ILABReverseVideoExportSessionErrorStatus;
+    ILABSessionErrorAudioInvalidTrackIndex          = -201,
+    ILABSessionErrorAudioCannotAddInput             = -202,
+    ILABSessionErrorAudioCanAddOutput               = -203,
+    ILABSessionErrorNoCompleteAudioExport           = -204,
+    
+} ILABSessionError;
 
 /**
  Block called when a reversal has completed.
@@ -52,7 +53,7 @@ typedef void(^ILABProgressBlock)(NSString *currentOperation, float progress);
  @param errorStatus The error status to return
  @return The NSError instance
  */
-+(NSError *)reverseVideoExportSessionError:(ILABReverseVideoExportSessionErrorStatus)errorStatus;
++(NSError *)ILABSessionError:(ILABSessionError)errorStatus;
 
 
 /**

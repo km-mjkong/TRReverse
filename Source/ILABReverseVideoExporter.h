@@ -18,4 +18,4 @@ FOUNDATION_EXPORT const unsigned char ILABReverseVideoExporterVersionString[];
 #import "ILABReverseVideoDefs.h"
 #import "ILABAudioTrackExporter.h"
 #import "ILABReverseVideoExportSession.h"
-
+#import "ILABTranscodeSession.h"
