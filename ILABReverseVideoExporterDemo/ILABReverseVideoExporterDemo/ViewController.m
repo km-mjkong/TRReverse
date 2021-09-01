@@ -219,12 +219,14 @@
     NSURL *outputURL = [NSURL fileURLWithPath:[cachePath stringByAppendingFormat:@"/%@-transcoded.mov", [[NSUUID UUID] UUIDString]]];
     NSLog(@"Output URL: %@", outputURL.path);
 
+    NSLog(@"transcode viewController timeRange: start(%.3f), duration(%.3f)",
+          CMTimeGetSeconds(startTime), CMTimeGetSeconds(duration));
     self.transcodeSession = [ILABTranscodeSession transcodeSessionWithAsset:asset
-                                                                  timeRange:CMTimeRangeMake(startTime, duration)
+                                                                  timeRange:CMTimeRangeMake(startTime, CMTimeAdd(duration, CMTimeMake(10, 1000)))
                                                                   outputURL:outputURL];
     self.transcodeSession.showDebug = YES;
-//    self.transcodeSession.frameRate = 12;
-//    self.transcodeSession.size = CGSizeMake(720, 1280);
+    self.transcodeSession.frameRate = 25;
+    self.transcodeSession.size = CGSizeMake(1280, 720);
 
     __weak typeof(self) weakSelf = self;
     [self.transcodeSession transcodeAsynchronously:^(NSString *currentOperation, float progress) {
