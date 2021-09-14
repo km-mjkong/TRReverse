@@ -216,7 +216,8 @@
     progressLabel.hidden = NO;
     
     NSString *cachePath = NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES).firstObject;
-    NSURL *outputURL = [NSURL fileURLWithPath:[cachePath stringByAppendingFormat:@"/%@-transcoded.mov", [[NSUUID UUID] UUIDString]]];
+    NSString *path = [cachePath stringByAppendingFormat:@"/%@-transcoded.mov", [[NSUUID UUID] UUIDString]];
+    NSURL *outputURL = [NSURL fileURLWithPath:path isDirectory:NO];
     NSLog(@"Output URL: %@", outputURL.path);
 
     NSLog(@"transcode viewController timeRange: start(%.3f), duration(%.3f)",
@@ -225,8 +226,6 @@
                                                                   timeRange:CMTimeRangeMake(startTime, CMTimeAdd(duration, CMTimeMake(10, 1000)))
                                                                   outputURL:outputURL];
     self.transcodeSession.showDebug = YES;
-    self.transcodeSession.frameRate = 25;
-    self.transcodeSession.size = CGSizeMake(1280, 720);
 
     __weak typeof(self) weakSelf = self;
     [self.transcodeSession transcodeAsynchronously:^(NSString *currentOperation, float progress) {
